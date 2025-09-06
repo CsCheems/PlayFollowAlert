@@ -1,0 +1,73 @@
+#status-container {
+	text-transform: uppercase;
+	font-family: 'Metropolis';
+	font-style: italic;
+	font-weight: bold;
+	font-size: 30px;
+	width: 400px;
+	max-width: fit-content;
+	text-align: center;
+	background-color: #D12025;
+	color: white;
+	padding: 10px;
+	border-radius: 10px;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+#notification {
+  width: 700px;
+  height: 110px;
+  background-color: #000;
+  transform: translateY(20%);
+  opacity: 0;
+  visibility: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#inner {
+  width: 99%;         
+  height: 95%;        
+  border: 2px solid #555; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+#information {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  width: 90%;
+}
+
+#avatar{
+	height: 70px;
+}
+
+#UserNameText {
+  color: white;
+  font-size: 28px;
+  font-weight: 500;
+  margin-left: 5px;
+  font-family: Helvetica;
+}
+
+#Event {
+  color: white;
+  font-size: 22px;
+  font-weight: 300;
+  margin-left: 20px;
+  font-family: Helvetica;
+}
+
+.icon {
+  height: 25px;
+  margin-left: 15px;
+}

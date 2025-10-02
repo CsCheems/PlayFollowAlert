@@ -1,16 +1,13 @@
-//PARAMETROS//
+//PARAMETERS//
 const querystring = window.location.search;
 const urlParameters = new URLSearchParams(querystring);
 const StreamerbotPort = urlParameters.get('port') || '8080';
 const StreamerbotAddress = urlParameters.get('address') || '127.0.0.1';
-const minRole = 3;
-const maxMessages = 10;
-let totalMessages = 0;
-let ultimoUsuario = '';
-const avatarHashMap = new Map();
+
+const notificationQueue = [];
+let showNotification = false;
 
 var audioNotification = document.createElement('audio');
-document.createElement('audioNotification');
 audioNotification.setAttribute('src', './sfx/PS4TrophySound.mp3');
 audioNotification.volume = 0.50;
 
@@ -27,20 +24,23 @@ const client = new StreamerbotClient({
     }
 });
 
-//EVENTOS
+//EVENTS
 
-client.on('Twitch.Follow', (response) => {
-    NotificacionFollow(response.data);
+client.on('Twitch.Follow', async (response) => {
+    const username = response.data.user_name;
+    const avatarUrl = await getAvatar(username);
+    onQueueNotification(username, avatarUrl);
 })
 
-async function NotificacionFollow(data) {
+client.on('YouTube.NewSubscriber', (response) => {
+    console.log(response);
+    onQueueNotification(response.data.username, response.data.avatar);
+})
+
+async function Follow(username, avatarUrl, done) {
     const notification = document.getElementById("notification");
     gsap.killTweensOf(notification);
-    audioNotification.play(); 
-
-    console.log(data);
-    const username = data.user_name;
-    const avatarUrl = await obtenerAvatar(username);
+    audioNotification.play();     
 
     const avatar = document.getElementById("avatar"); 
     avatar.src = avatarUrl;
@@ -51,6 +51,11 @@ async function NotificacionFollow(data) {
     const tl = gsap.timeline({
         onStart: () => {
             notification.style.visibility = 'visible';
+        },
+        onComplete: () => {
+            notification.style.visibility = 'hidden';
+            notification.style.transform = "translateX(0)";
+            if (done) done();
         }
     });
 
@@ -79,10 +84,29 @@ async function NotificacionFollow(data) {
     });
 }
 
+//HELPERS
 
-//Helpers
+function onQueueNotification(username, avatarUrl){
+    notificationQueue.push({username, avatarUrl});
+    if(!showNotification){
+        showNextNotification();
+    }
+}
 
-async function obtenerAvatar(username){
+function showNextNotification(){
+    if(notificationQueue.length === 0){
+        showNotification = false;
+        return;
+    }
+
+    showNotification = true;
+    const {username, avatarUrl} = notificationQueue.shift();
+    Follow(username, avatarUrl, () => {
+        showNextNotification();
+    });
+}
+
+async function getAvatar(username){
     let response = await fetch('https://decapi.me/twitch/avatar/'+username);
     let data = await response.text();
     return data;
@@ -94,7 +118,7 @@ function setConnectionStatus(connected){
     let statusContainer = document.getElementById('status-container');
     if(connected){
         statusContainer.style.background = "#2FB774";
-        statusContainer.innerText = "CONECTADO!";
+        statusContainer.innerText = "ONLINE!";
         statusContainer.style.opacity = 1;
         setTimeout(() => {
             statusContainer.style.transition = "all 2s ease";
@@ -102,7 +126,7 @@ function setConnectionStatus(connected){
         }, 10);
     }else{
         statusContainer.style.background = "FF0000";
-        statusContainer.innerText = "CONECTANDO...";
+        statusContainer.innerText = "STREAMERBOT OFFLINE...";
         statusContainer.style.transition = "";
         statusContainer.style.opacity = 1;
     }

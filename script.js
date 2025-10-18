@@ -29,12 +29,20 @@ const client = new StreamerbotClient({
 client.on('Twitch.Follow', async (response) => {
     const username = response.data.user_name;
     const avatarUrl = await getAvatar(username);
-    onQueueNotification(username, avatarUrl);
+    onQueueNotification(username, avatarUrl, 0);
 })
 
 client.on('YouTube.NewSubscriber', (response) => {
     console.log(response);
-    onQueueNotification(response.data.username, response.data.avatar);
+    onQueueNotification(response.data.username, response.data.avatar, 0);
+})
+
+client.on('Twitch.Raid', async (response) =>{
+    const username = response.data.from_broadcaster_user_name;
+    const avatarUrl = await getAvatar(username);
+    const viewers = response.data.viewers;
+    console.log(response);
+    onQueueNotification(username, avatarUrl, viewers);
 })
 
 async function Follow(username, avatarUrl, done) {
@@ -47,6 +55,59 @@ async function Follow(username, avatarUrl, done) {
 
     const userNameText = document.getElementById("UserNameText");
     userNameText.innerText = username;
+
+    const eventText = document.getElementById("Event");
+    eventText.innerText = "Ha dado follow al canal";
+
+    const tl = gsap.timeline({
+        onStart: () => {
+            notification.style.visibility = 'visible';
+        },
+        onComplete: () => {
+            notification.style.visibility = 'hidden';
+            notification.style.transform = "translateX(0)";
+            if (done) done();
+        }
+    });
+
+    tl.to(notification, { 
+        x: -20, 
+        opacity: 1, 
+        duration: .7, 
+        ease: "power3.out", 
+        delay: 1.5
+    });
+
+    tl.to(notification, { 
+        opacity: 0, 
+        duration: 1, 
+        delay: 6, 
+        ease: "power2.inOut",
+        onComplete: () => {
+            notification.style.visibility = 'hidden';
+        }
+    });
+
+    tl.to(notification, { 
+        x: -1000,
+        duration: 1,
+        ease: "power2.inOut",
+    });
+}
+
+async function Raid(username, avatarUrl, viewers, done) {
+    const notification = document.getElementById("notification");
+    gsap.killTweensOf(notification);
+    audioNotification.play();     
+
+    const avatar = document.getElementById("avatar"); 
+    avatar.src = avatarUrl;
+
+    const userNameText = document.getElementById("UserNameText");
+    userNameText.innerText = username;
+
+    const eventText = document.getElementById("Event");
+    eventText.innerText = `Esta raideando con ${viewers} espectadores!`;
 
     const tl = gsap.timeline({
         onStart: () => {
@@ -86,14 +147,14 @@ async function Follow(username, avatarUrl, done) {
 
 //HELPERS
 
-function onQueueNotification(username, avatarUrl){
+function onQueueNotification(username, avatarUrl, viewers){
     notificationQueue.push({username, avatarUrl});
     if(!showNotification){
-        showNextNotification();
+        showNextNotification(viewers);
     }
 }
 
-function showNextNotification(){
+function showNextNotification(viewers){
     if(notificationQueue.length === 0){
         showNotification = false;
         return;
@@ -101,9 +162,17 @@ function showNextNotification(){
 
     showNotification = true;
     const {username, avatarUrl} = notificationQueue.shift();
-    Follow(username, avatarUrl, () => {
-        showNextNotification();
-    });
+
+    if(viewers === 0){
+        Follow(username, avatarUrl, () => {
+            showNextNotification();
+        });
+    }else{
+        Raid(username, avatarUrl, viewers, () => {
+            showNextNotification();
+        });
+    }
+    
 }
 
 async function getAvatar(username){

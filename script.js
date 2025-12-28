@@ -37,13 +37,13 @@ client.on('YouTube.NewSubscriber', (response) => {
     onQueueNotification(response.data.username, response.data.avatar, 0);
 })
 
-client.on('Twitch.Raid', async (response) =>{
+/*client.on('Twitch.Raid', async (response) =>{
     const username = response.data.from_broadcaster_user_name;
     const avatarUrl = await getAvatar(username);
     const viewers = response.data.viewers;
     console.log(response);
     onQueueNotification(username, avatarUrl, viewers);
-})
+})*/
 
 async function Follow(username, avatarUrl, done) {
     const notification = document.getElementById("notification");

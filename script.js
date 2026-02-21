@@ -27,34 +27,31 @@ const client = new StreamerbotClient({
 //EVENTS
 
 client.on('Twitch.Follow', async (response) => {
-    const username = response.data.user_name;
-    const avatarUrl = await getAvatar(username);
-    onQueueNotification(username, avatarUrl, 0);
+    const event = "follow";
+    onQueueNotification(response.data, event);
 })
 
 client.on('YouTube.NewSubscriber', (response) => {
-    console.log(response);
-    onQueueNotification(response.data.username, response.data.avatar, 0);
+    onQueueNotification(response.data);
 })
 
-/*client.on('Twitch.Raid', async (response) =>{
-    const username = response.data.from_broadcaster_user_name;
-    const avatarUrl = await getAvatar(username);
-    const viewers = response.data.viewers;
-    console.log(response);
-    onQueueNotification(username, avatarUrl, viewers);
-})*/
+client.on('Twitch.Raid', async (response) =>{
+    const event = "raid";
+    onQueueNotification(response.data, event);
+})
 
-async function Follow(username, avatarUrl, done) {
+async function Follow(data, done) {
+    console.log("Follow: ", data);
     const notification = document.getElementById("notification");
     gsap.killTweensOf(notification);
     audioNotification.play();     
 
     const avatar = document.getElementById("avatar"); 
+    const avatarUrl = await getAvatar(data.user_name);
     avatar.src = avatarUrl;
 
     const userNameText = document.getElementById("UserNameText");
-    userNameText.innerText = username;
+    userNameText.innerText = data.user_name;
 
     const eventText = document.getElementById("Event");
     eventText.innerText = "Ha dado follow al canal";
@@ -95,82 +92,69 @@ async function Follow(username, avatarUrl, done) {
     });
 }
 
-async function Raid(username, avatarUrl, viewers, done) {
-    const notification = document.getElementById("notification");
-    gsap.killTweensOf(notification);
-    audioNotification.play();     
+async function Raid(data, done) {
+  console.log("Raid:", data);
 
-    const avatar = document.getElementById("avatar"); 
-    avatar.src = avatarUrl;
+  const notification = document.getElementById("notification");
+  gsap.killTweensOf(notification);
 
-    const userNameText = document.getElementById("UserNameText");
-    userNameText.innerText = username;
+  try { await audioNotification.play(); } catch (e) { console.warn("Audio blocked:", e); }
 
-    const eventText = document.getElementById("Event");
-    eventText.innerText = `Esta raideando con ${viewers} espectadores!`;
+  const username = data?.from_broadcaster_user_name || data?.username || "Alguien";
+  const viewers = data?.viewers || data?.viewer_count || data?.raid_viewer_count || 0;
 
-    const tl = gsap.timeline({
-        onStart: () => {
-            notification.style.visibility = 'visible';
-        },
-        onComplete: () => {
-            notification.style.visibility = 'hidden';
-            notification.style.transform = "translateX(0)";
-            if (done) done();
-        }
-    });
+  const avatar = document.getElementById("avatar");
+  avatar.src = await getAvatar(username);
 
-    tl.to(notification, { 
-        x: -20, 
-        opacity: 1, 
-        duration: .7, 
-        ease: "power3.out", 
-        delay: 1.5
-    });
+  document.getElementById("UserNameText").innerText = username;
+  document.getElementById("Event").innerText = `Esta raideando con ${viewers} espectadores!`;
 
-    tl.to(notification, { 
-        opacity: 0, 
-        duration: 1, 
-        delay: 6, 
-        ease: "power2.inOut",
-        onComplete: () => {
-            notification.style.visibility = 'hidden';
-        }
-    });
+  const tl = gsap.timeline({
+    onStart: () => { notification.style.visibility = "visible"; },
+    onComplete: () => {
+      notification.style.visibility = "hidden";
+      notification.style.transform = "translateX(0)";
+      done?.();
+    },
+  });
 
-    tl.to(notification, { 
-        x: -1000,
-        duration: 1,
-        ease: "power2.inOut",
-    });
+  tl.to(notification, { x: -20, opacity: 1, duration: 0.7, ease: "power3.out", delay: 1.5 });
+  tl.to(notification, { opacity: 0, duration: 1, delay: 6, ease: "power2.inOut" });
+  tl.to(notification, { x: -1000, duration: 1, ease: "power2.inOut" });
 }
 
 //HELPERS
 
-function onQueueNotification(username, avatarUrl, viewers){
-    notificationQueue.push({username, avatarUrl});
+function onQueueNotification(data, event){
+    notificationQueue.push({event, data});
     if(!showNotification){
-        showNextNotification(viewers);
+        showNextNotification();
     }
 }
 
-function showNextNotification(viewers){
+function showNextNotification(){
     if(notificationQueue.length === 0){
         showNotification = false;
         return;
     }
 
     showNotification = true;
-    const {username, avatarUrl} = notificationQueue.shift();
-
-    if(viewers === 0){
-        Follow(username, avatarUrl, () => {
+    const {event, data} = notificationQueue.shift();
+    switch(event){
+        case "follow":
+            Follow(data, () => {
+                showNextNotification();
+            });
+            break;
+        case "raid":
+            Raid(data, () => {
+                showNextNotification();
+            });
+            break;
+        default:
             showNextNotification();
-        });
-    }else{
-        Raid(username, avatarUrl, viewers, () => {
-            showNextNotification();
-        });
+            break;
+        
     }
     
 }
